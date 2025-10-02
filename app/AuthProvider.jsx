@@ -1,34 +1,38 @@
-
+"use client"
 import { api } from '@/convex/_generated/api';
 import { useUser } from '@stackframe/stack'
 import { useMutation } from 'convex/react';
-import React, { useEffect, Suspense } from 'react'
+import React, { useEffect, Suspense, useState } from 'react'
+import { UserContext } from './_context/UserContext';
 
-function AuthContent({ children }) {
+function AuthProvider({ children }) {
+
   const user = useUser();
-
+  const createUser = useMutation(api.users.CreateUser);
+  const [userData,setUserData]=useState();
   useEffect(() => {
     console.log(user)
+    user&&CreateNewUser();
   }, [user])
 
-  const createUser = useMutation(api.users.CreateUser);
 
   const CreateNewUser = async()=>{
     const result=await createUser(
         {
             name: user?.displayName,
-           email: user.primaryEmail
+            email: user.primaryEmail
         }
-    )
+    );
+    console.log(result);
+    setUserData(result);
   }
 
-  return <>{children}</>
+  return (
+  <div>
+    <UserContext.Provider value={{userData,setUserData}}>
+      {children}
+    </UserContext.Provider>
+  </div>)
 }
 
-export default function AuthProvider({ children }) {
-  return (
-    <Suspense fallback={<p>Loading user...</p>}>
-      <AuthContent>{children}</AuthContent>
-    </Suspense>
-  )
-}
+export default AuthProvider 
