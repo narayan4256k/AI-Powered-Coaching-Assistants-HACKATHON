@@ -159,7 +159,7 @@ function ChatPage() {
                         </p>
                       </div>
                     ))}
-                    {/* 👇 3. Render both live transcripts */}
+                    
                     {userLiveTranscript && (
                       <div className="flex justify-end">
                         <p className="p-2 rounded-lg max-w-[80%] bg-blue-200 text-gray-600">
@@ -179,7 +179,7 @@ function ChatPage() {
                   </>
                 ) : (
                   <p className="text-gray-400 text-center my-auto">
-                    Start the conversation to see the transcript...
+                    Start the conversation to see the transcript....
                   </p>
                 )}
               </div>
