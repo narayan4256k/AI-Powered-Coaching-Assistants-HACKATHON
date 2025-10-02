@@ -3,25 +3,26 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import { CoachingExpert } from "@/services/Options";
 import { UserButton } from "@stackframe/stack";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
+import Vapi from "@vapi-ai/web";
 
 function ChatPage() {
   const { pageid } = useParams();
   const chatPageInfo = useQuery(api.Chats.getChat, { id: pageid });
-  const [expert, setExpert] = useState();
-  const [enabledMic, setEnabledMic] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [volume, setVolume] = useState(0);
+  const updateConversation = useMutation(api.Chats.updateConversation);
 
-  const recognitionRef = useRef(null);
-  const audioContextRef = useRef(null);
-  const analyserRef = useRef(null);
-  const micStreamRef = useRef(null);
+  const [expert, setExpert] = useState(null);
+  const [callStarted, setCallStarted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [userLiveTranscript, setUserLiveTranscript] = useState("");
+  // 👇 1. Add state for the AI's live transcript
+  const [assistantLiveTranscript, setAssistantLiveTranscript] = useState("");
+  const vapiRef = useRef(null);
 
-  // Load expert details
   useEffect(() => {
     if (chatPageInfo) {
       const Expert = CoachingExpert.find(
@@ -31,126 +32,82 @@ function ChatPage() {
     }
   }, [chatPageInfo]);
 
-  // Setup SpeechRecognition
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
+  const startCall = () => {
+    const apiKey = process.env.NEXT_PUBLIC_VAPI_API_KEY;
+    const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
 
-      if (!SpeechRecognition) {
-        console.warn(" Speech Recognition not supported in this browser");
-        return;
-      }
-
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = "en-IN"; 
-
-      recognition.onstart = () => {
-        console.log("🎤 Recognition started");
-      };
-
-      recognition.onresult = (event) => {
-        let liveTranscript = "";
-        for (let i = 0; i < event.results.length; i++) {
-          liveTranscript += event.results[i][0].transcript + " ";
-        }
-        setTranscript(liveTranscript.trim());
-      };
-
-      recognition.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
-      };
-
-      recognition.onaudioend = () => {
-        console.log(" Audio capturing ended");
-      };
-
-      recognition.onspeechend = () => {
-        console.log("Speech ended");
-      };
-
-      recognition.onend = () => {
-        console.log("Recognition ended");
-        if (enabledMic) {
-          console.log("Restarting recognition...");
-          recognition.start();
-        }
-      };
-
-      recognitionRef.current = recognition;
+    if (!assistantId) {
+      alert("ERROR: Vapi Assistant ID is missing. Check your .env.local file.");
+      return;
     }
-  }, [enabledMic]);
 
-  // Setup mic visualizer
-  useEffect(() => {
-    let rafId;
-    if (enabledMic) {
-      navigator.mediaDevices
-        .getUserMedia({ audio: true })
-        .then((stream) => {
-          console.log("🎤 Raw mic access OK:", stream);
-          micStreamRef.current = stream;
+    const vapi = new Vapi(apiKey);
+    vapiRef.current = vapi;
+    setLoading(true);
+    vapi.start(assistantId);
 
-          audioContextRef.current = new (window.AudioContext ||
-            window.webkitAudioContext)();
-          const source = audioContextRef.current.createMediaStreamSource(stream);
+    vapi.on("call-start", () => {
+      console.log("Vapi call started");
+      setCallStarted(true);
+      setLoading(false);
+      setMessages([]);
+      setUserLiveTranscript("");
+      setAssistantLiveTranscript("");
+    });
 
-          analyserRef.current = audioContextRef.current.createAnalyser();
-          analyserRef.current.fftSize = 256;
-          source.connect(analyserRef.current);
+    vapi.on("call-end", () => {
+      console.log("Vapi call ended");
+      setCallStarted(false);
+      setLoading(false);
+    });
 
-          const bufferLength = analyserRef.current.frequencyBinCount;
-          const dataArray = new Uint8Array(bufferLength);
+    // 👇 2. Update the message handler
+    vapi.on("message", (message) => {
+      if (message.type === "transcript" && message.transcriptType === "partial") {
+        if (message.role === "user") {
+          setUserLiveTranscript(message.transcript);
+        } else if (message.role === "assistant") {
+          setAssistantLiveTranscript(message.transcript);
+        }
+      } else if (message.type === "transcript" && message.transcriptType === "final") {
+        // Clear both live transcripts and add the final message
+        setUserLiveTranscript("");
+        setAssistantLiveTranscript("");
+        setMessages((prevMessages) => [...prevMessages, { role: message.role, text: message.transcript }]);
+      }
+    });
 
-          const updateVolume = () => {
-            analyserRef.current.getByteFrequencyData(dataArray);
-            let values = 0;
-            for (let i = 0; i < bufferLength; i++) {
-              values += dataArray[i];
-            }
-            let avg = values / bufferLength;
-            setVolume(avg);
-            rafId = requestAnimationFrame(updateVolume);
-          };
-          updateVolume();
-        })
-        .catch((err) => {
-          console.error(" Mic access error:", err);
+    vapi.on("error", (e) => {
+      console.error("Vapi error:", e);
+      setCallStarted(false);
+      setLoading(false);
+    });
+  };
+
+  const endCall = async () => {
+    if (vapiRef.current) {
+      console.log("Ending call and saving conversation...");
+      try {
+        await updateConversation({
+          id: pageid,
+          conversation: messages,
         });
-    }
-
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      if (micStreamRef.current) {
-        micStreamRef.current.getTracks().forEach((track) => track.stop());
+        console.log("✅ Conversation saved successfully to Convex.");
+      } catch (error) {
+        console.error("❌ Failed to save conversation:", error);
+      } finally {
+        vapiRef.current.stop();
       }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (vapiRef.current) {
+        vapiRef.current.stop();
       }
     };
-  }, [enabledMic]);
-
-  const connectToServer = async () => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start();
-        setEnabledMic(true);
-        console.log(" Mic connected & SpeechRecognition started");
-      } catch (err) {
-        console.error(" Failed to start recognition:", err);
-      }
-    }
-  };
-
-  const disconnect = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-    setEnabledMic(false);
-    console.log(" Mic disconnected & SpeechRecognition stopped");
-  };
+  }, []);
 
   return (
     <div>
@@ -162,24 +119,26 @@ function ChatPage() {
             <div className="bg-secondary border-2 rounded-3xl items-center justify-center flex h-[60vh] border-gray-300 flex-col relative">
               <Image
                 src={expert.avatar}
-                alt="loading..."
+                alt={expert.name}
                 height={100}
                 width={100}
-                className="h-[100px] w-[100px] rounded-full border-4 border-blue-400 object-cover animate-pulse"
+                className={`h-[100px] w-[100px] rounded-full border-4 object-cover ${
+                  callStarted ? "border-green-500 animate-pulse" : "border-blue-400"
+                }`}
               />
               <h2 className="mt-2">{expert.name}</h2>
               <div className="p-5 bg-gray-200 px-10 rounded-lg bottom-10 right-10 absolute">
                 <UserButton />
               </div>
             </div>
-
-            {/* Mic Controls */}
             <div className="mt-5 flex items-center justify-center cursor-pointer gap-4">
-              {!enabledMic ? (
-                <Button onClick={connectToServer}>Start Recording</Button>
+              {!callStarted ? (
+                <Button onClick={startCall} disabled={loading}>
+                  {loading ? "Connecting..." : "Start Conversation"}
+                </Button>
               ) : (
-                <Button variant="destructive" onClick={disconnect}>
-                  Stop Recording
+                <Button variant="destructive" onClick={endCall}>
+                  End Conversation
                 </Button>
               )}
             </div>
@@ -187,21 +146,47 @@ function ChatPage() {
 
           {/* Right Side */}
           <div>
-            <div className="bg-secondary border-2 rounded-3xl flex h-[60vh] border-gray-300 flex-col p-4 overflow-y-auto">
-              <h2 className="text-lg font-semibold mb-2">📝 Chat Section</h2>
-              <div className="bg-white p-3 rounded shadow-sm flex-1 overflow-y-auto">
-                {transcript ? (
-                  <p className="text-gray-800">{transcript}</p>
+            <div className="bg-secondary border-2 rounded-3xl flex h-[60vh] border-gray-300 flex-col p-4">
+              <h2 className="text-lg font-semibold mb-2 text-center">📝 Conversation</h2>
+              <div className="bg-white p-3 rounded shadow-sm flex-1 overflow-y-auto space-y-2">
+                {messages.length > 0 || userLiveTranscript || assistantLiveTranscript ? (
+                  <>
+                    {messages.map((msg, index) => (
+                      <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                        <p className={`p-2 rounded-lg max-w-[80%] ${msg.role === "user" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-800"}`}>
+                          <strong>{msg.role === "user" ? "You: " : "AI: "}</strong>
+                          {msg.text}
+                        </p>
+                      </div>
+                    ))}
+                    {/* 👇 3. Render both live transcripts */}
+                    {userLiveTranscript && (
+                      <div className="flex justify-end">
+                        <p className="p-2 rounded-lg max-w-[80%] bg-blue-200 text-gray-600">
+                          <strong>You: </strong>
+                          {userLiveTranscript}
+                        </p>
+                      </div>
+                    )}
+                    {assistantLiveTranscript && (
+                      <div className="flex justify-start">
+                        <p className="p-2 rounded-lg max-w-[80%] bg-gray-100 text-gray-600">
+                          <strong>AI: </strong>
+                          {assistantLiveTranscript}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <p className="text-gray-400">
-                    Start speaking to see transcription...
+                  <p className="text-gray-400 text-center my-auto">
+                    Start the conversation to see the transcript...
                   </p>
                 )}
               </div>
             </div>
             <div>
               <h2 className="p-5 px-7 text-gray-500">
-                Feedback/Notes will be generated at the end of the conversation
+                Feedback/Notes will be generated at the end of the conversation.
               </h2>
             </div>
           </div>
@@ -212,4 +197,3 @@ function ChatPage() {
 }
 
 export default ChatPage;
- 
