@@ -19,7 +19,6 @@ function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
   const [userLiveTranscript, setUserLiveTranscript] = useState("");
-  // 👇 1. Add state for the AI's live transcript
   const [assistantLiveTranscript, setAssistantLiveTranscript] = useState("");
   const vapiRef = useRef(null);
 
@@ -32,22 +31,84 @@ function ChatPage() {
     }
   }, [chatPageInfo]);
 
+  // 🚀 Start Call with dynamic assistant
   const startCall = () => {
-    const apiKey = process.env.NEXT_PUBLIC_VAPI_API_KEY;
-    const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
-
-    if (!assistantId) {
-      alert("ERROR: Vapi Assistant ID is missing. Check your .env.local file.");
+    if (!chatPageInfo) {
+      alert("Still loading session details. Please try again in a moment.");
       return;
     }
+
+    const apiKey = process.env.NEXT_PUBLIC_VAPI_API_KEY;
+    if (!apiKey) {
+      alert("ERROR: Vapi API Key missing. Check your .env.local file.");
+      return;
+    }
+
+    // ✅ Replace placeholders dynamically
+    const assistantOptions ={
+      name: "Ai Coach",
+      firstMessage: `Hi! 👋 Ready to start your session on `+chatPageInfo?.topic,
+      transcriber: {
+        provider: "deepgram",
+        model: "nova-2",
+        language: "en-US",
+      },
+      voice: {
+        provider: "playht",
+        voiceId:
+          CoachingExpert === "mathhew"
+            ? "michael"
+            : "jennifer", 
+      },
+      model: {
+        provider: "openai",
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: `
+          You are a supportive and patient Teacher to conduct`+chatPageInfo?.coachingOption+`.
+          Your role is to help the student understand concepts clearly and confidently.
+
+          [Style]
+          - Use a warm, encouraging tone to create a safe learning space.
+          - Adapt explanations to the student’s level of knowledge.
+          - Be concise, clear, and use simple language.
+          - Use real-life examples or analogies for better understanding.
+
+          [Guidelines]
+          1. Start with a friendly greeting: 
+            Example: "Hi student  Excited to dive into `+chatPageInfo?.topic+` with you today."
+          2. Give a short, clear explanation of the topic.
+          3. Ask simple questions to check understanding.
+          4. If the student seems confused, re-explain in a different way.
+          5. Encourage curiosity and invite questions.
+          6. Wrap up with a positive summary and next-step suggestion.
+
+          [Error Handling]
+          - If the student’s input is unclear, kindly ask them to clarify.
+          - If they make a mistake, gently correct and explain why.
+
+          Goal: 
+          ✅ Make the student feel supported and motivated.
+          ✅ Ensure the session on `+chatPageInfo?.topic +` is interactive and engaging.
+          `.trim(),
+          },
+        ],
+      },
+    };
+
+    console.log("🚀 Starting Vapi with assistant config:", assistantOptions);
 
     const vapi = new Vapi(apiKey);
     vapiRef.current = vapi;
     setLoading(true);
-    vapi.start(assistantId);
+
+    // 👇 Pass config object, not just assistantId
+    vapi.start(assistantOptions);
 
     vapi.on("call-start", () => {
-      console.log("Vapi call started");
+      console.log("✅ Vapi call started");
       setCallStarted(true);
       setLoading(false);
       setMessages([]);
@@ -56,29 +117,36 @@ function ChatPage() {
     });
 
     vapi.on("call-end", () => {
-      console.log("Vapi call ended");
+      console.log("📞 Vapi call ended");
       setCallStarted(false);
       setLoading(false);
     });
 
-    // 👇 2. Update the message handler
     vapi.on("message", (message) => {
-      if (message.type === "transcript" && message.transcriptType === "partial") {
+      if (
+        message.type === "transcript" &&
+        message.transcriptType === "partial"
+      ) {
         if (message.role === "user") {
           setUserLiveTranscript(message.transcript);
         } else if (message.role === "assistant") {
           setAssistantLiveTranscript(message.transcript);
         }
-      } else if (message.type === "transcript" && message.transcriptType === "final") {
-        // Clear both live transcripts and add the final message
+      } else if (
+        message.type === "transcript" &&
+        message.transcriptType === "final"
+      ) {
         setUserLiveTranscript("");
         setAssistantLiveTranscript("");
-        setMessages((prevMessages) => [...prevMessages, { role: message.role, text: message.transcript }]);
+        setMessages((prev) => [
+          ...prev,
+          { role: message.role, text: message.transcript },
+        ]);
       }
     });
 
     vapi.on("error", (e) => {
-      console.error("Vapi error:", e);
+      console.error("❌ Vapi error:", e);
       setCallStarted(false);
       setLoading(false);
     });
@@ -86,13 +154,13 @@ function ChatPage() {
 
   const endCall = async () => {
     if (vapiRef.current) {
-      console.log("Ending call and saving conversation...");
+      console.log("💾 Ending call and saving conversation...");
       try {
         await updateConversation({
           id: pageid,
           conversation: messages,
         });
-        console.log("✅ Conversation saved successfully to Convex.");
+        console.log("✅ Conversation saved to Convex.");
       } catch (error) {
         console.error("❌ Failed to save conversation:", error);
       } finally {
@@ -103,12 +171,11 @@ function ChatPage() {
 
   useEffect(() => {
     return () => {
-      if (vapiRef.current) {
-        vapiRef.current.stop();
-      }
+      if (vapiRef.current) vapiRef.current.stop();
     };
   }, []);
 
+  // ✅ Your JSX stays unchanged
   return (
     <div>
       <h2 className="text-lg font-bold">{chatPageInfo?.coachingOption}</h2>
@@ -123,7 +190,9 @@ function ChatPage() {
                 height={100}
                 width={100}
                 className={`h-[100px] w-[100px] rounded-full border-4 object-cover ${
-                  callStarted ? "border-green-500 animate-pulse" : "border-blue-400"
+                  callStarted
+                    ? "border-green-500 animate-pulse"
+                    : "border-blue-400"
                 }`}
               />
               <h2 className="mt-2">{expert.name}</h2>
@@ -147,19 +216,33 @@ function ChatPage() {
           {/* Right Side */}
           <div>
             <div className="bg-secondary border-2 rounded-3xl flex h-[60vh] border-gray-300 flex-col p-4">
-              <h2 className="text-lg font-semibold mb-2 text-center">📝 Conversation</h2>
+              <h2 className="text-lg font-semibold mb-2 text-center">
+                📝 Conversation
+              </h2>
               <div className="bg-white p-3 rounded shadow-sm flex-1 overflow-y-auto space-y-2">
-                {messages.length > 0 || userLiveTranscript || assistantLiveTranscript ? (
+                {messages.length > 0 ||
+                userLiveTranscript ||
+                assistantLiveTranscript ? (
                   <>
                     {messages.map((msg, index) => (
-                      <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <p className={`p-2 rounded-lg max-w-[80%] ${msg.role === "user" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-800"}`}>
-                          <strong>{msg.role === "user" ? "You: " : "AI: "}</strong>
+                      <div
+                        key={index}
+                        className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                      >
+                        <p
+                          className={`p-2 rounded-lg max-w-[80%] ${
+                            msg.role === "user"
+                              ? "bg-blue-500 text-white"
+                              : "bg-gray-200 text-gray-800"
+                          }`}
+                        >
+                          <strong>
+                            {msg.role === "user" ? "You: " : "AI: "}
+                          </strong>
                           {msg.text}
                         </p>
                       </div>
                     ))}
-                    
                     {userLiveTranscript && (
                       <div className="flex justify-end">
                         <p className="p-2 rounded-lg max-w-[80%] bg-blue-200 text-gray-600">
