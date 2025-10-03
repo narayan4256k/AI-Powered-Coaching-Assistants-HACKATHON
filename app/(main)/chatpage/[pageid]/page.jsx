@@ -45,9 +45,10 @@ function ChatPage() {
     }
 
     // ✅ Replace placeholders dynamically
-    const assistantOptions ={
+    const assistantOptions = {
       name: "Ai Coach",
-      firstMessage: `Hi! 👋 Ready to start your session on `+chatPageInfo?.topic,
+      firstMessage:
+        `Hi! 👋 Ready to start your session on ` + chatPageInfo?.topic,
       transcriber: {
         provider: "deepgram",
         model: "nova-2",
@@ -55,10 +56,7 @@ function ChatPage() {
       },
       voice: {
         provider: "playht",
-        voiceId:
-          CoachingExpert === "mathhew"
-            ? "michael"
-            : "jennifer", 
+        voiceId: CoachingExpert === "mathhew" ? "michael" : "jennifer",
       },
       model: {
         provider: "openai",
@@ -66,8 +64,11 @@ function ChatPage() {
         messages: [
           {
             role: "system",
-            content: `
-          You are a supportive and patient Teacher to conduct`+chatPageInfo?.coachingOption+`.
+            content:
+              `
+          You are a supportive and patient Teacher to conduct` +
+              chatPageInfo?.coachingOption +
+              `.
           Your role is to help the student understand concepts clearly and confidently.
 
           [Style]
@@ -78,7 +79,9 @@ function ChatPage() {
 
           [Guidelines]
           1. Start with a friendly greeting: 
-            Example: "Hi student  Excited to dive into `+chatPageInfo?.topic+` with you today."
+            Example: "Hi student  Excited to dive into ` +
+              chatPageInfo?.topic +
+              ` with you today."
           2. Give a short, clear explanation of the topic.
           3. Ask simple questions to check understanding.
           4. If the student seems confused, re-explain in a different way.
@@ -91,7 +94,9 @@ function ChatPage() {
 
           Goal: 
           ✅ Make the student feel supported and motivated.
-          ✅ Ensure the session on `+chatPageInfo?.topic +` is interactive and engaging.
+          ✅ Ensure the session on ` +
+              chatPageInfo?.topic +
+              ` is interactive and engaging.
           `.trim(),
           },
         ],
@@ -146,9 +151,7 @@ function ChatPage() {
     });
 
     vapi.on("error", (e) => {
-      console.error("❌ Vapi error:", e);
-      setCallStarted(false);
-      setLoading(false);
+      console.error("❌ Vapi error:", JSON.stringify(e, null, 2));
     });
   };
 
