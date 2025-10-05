@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import {
   Dialog,
   DialogClose,
@@ -17,27 +17,30 @@ import { Loader2 } from "lucide-react";
 import { api } from "/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
+import { UserContext } from "@/app/_context/UserContext";
 
 function UserInputDialog({ children, List }) {
   const [selectedExpert, setSelectedExpert] = useState();
-  const [topic,setTopic] = useState();
+  const [topic, setTopic] = useState();
   const createChat = useMutation(api.Chats.createChat);
-  const [loading,setLoading]= useState(false);
-  const [openDialog,setOpenDialog]= useState(false);
+  const [loading, setLoading] = useState(false);
+  const [openDialog, setOpenDialog] = useState(false);
   const router = useRouter();
+  const { userData } = useContext(UserContext);
 
-  const onClickNext=async()=>{
+  const onClickNext = async () => {
     setLoading(true);
     const result = await createChat({
-      topic:topic,
-      coachingOption:List?.name,
-      CoachingExpert:selectedExpert,
-    })
+      topic: topic,
+      coachingOption: List?.name,
+      CoachingExpert: selectedExpert,
+      uid: userData?._id,
+    });
     console.log(result);
     setLoading(false);
     setOpenDialog(false);
-    router.push("chatpage/"+result);
-  }
+    router.push("chatpage/" + result);
+  };
   return (
     <div>
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
@@ -52,11 +55,10 @@ function UserInputDialog({ children, List }) {
                 </h2>
                 <Textarea
                   placeholder="Enter your topic here..."
-                  className="mt-2" onChange={(event)=>setTopic(event.target.value)}
+                  className="mt-2"
+                  onChange={(event) => setTopic(event.target.value)}
                 />
-                <h2 className="text-black mt-5">
-                  Selct your Coaching Expert
-                </h2>
+                <h2 className="text-black mt-5">Selct your Coaching Expert</h2>
                 <div className="flex justify-evenly items-center ">
                   {CoachingExpert.map((expert, index) => (
                     <div
@@ -81,13 +83,22 @@ function UserInputDialog({ children, List }) {
                   ))}
                 </div>
                 <div className="justify-between mt-5  flex">
-                    <DialogClose asChild>
-                    <Button variant={'destructive'} className="cursor-pointer hover:scale-105 transition-all">Cancel</Button>
-                    </DialogClose>
-                    <Button className="cursor-pointer hover:scale-105 transition-all" disabled={(!topic||!selectedExpert||loading)} onClick={()=>onClickNext()}>
-                      {loading&&<Loader2 className="animate-spin"/>}
-                      Submit
-                      </Button>
+                  <DialogClose asChild>
+                    <Button
+                      variant={"destructive"}
+                      className="cursor-pointer hover:scale-105 transition-all"
+                    >
+                      Cancel
+                    </Button>
+                  </DialogClose>
+                  <Button
+                    className="cursor-pointer hover:scale-105 transition-all"
+                    disabled={!topic || !selectedExpert || loading}
+                    onClick={() => onClickNext()}
+                  >
+                    {loading && <Loader2 className="animate-spin" />}
+                    Submit
+                  </Button>
                 </div>
               </div>
             </DialogDescription>

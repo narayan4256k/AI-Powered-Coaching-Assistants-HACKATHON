@@ -13,5 +13,7 @@ export default defineSchema({
     CoachingExpert: v.string(),
     topic: v.string(),
     conversation: v.optional(v.any()),
+    feedback:v.optional(v.any()),
+    uid:v.optional(v.id('users'))
   }),
 });

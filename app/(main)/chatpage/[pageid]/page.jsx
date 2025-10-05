@@ -8,19 +8,29 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import Vapi from "@vapi-ai/web";
+import { AIModelToGenerateFeedback } from "@/services/GlobalServices"; 
+import { LoaderCircle, Loader2 } from "lucide-react";
+import { getVapiConfig } from "@/services/Vapi"; // Assumed path
+import { toast } from "sonner";
 
 function ChatPage() {
   const { pageid } = useParams();
   const chatPageInfo = useQuery(api.Chats.getChat, { id: pageid });
   const updateConversation = useMutation(api.Chats.updateConversation);
+  // 🌟 FIX 1: Import the save feedback mutation 🌟
+  const saveFeedback = useMutation(api.Chats.updateFeedback); 
 
   const [expert, setExpert] = useState(null);
   const [callStarted, setCallStarted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [notesLoading, setNotesLoading] = useState(false);
   const [messages, setMessages] = useState([]);
   const [userLiveTranscript, setUserLiveTranscript] = useState("");
   const [assistantLiveTranscript, setAssistantLiveTranscript] = useState("");
   const vapiRef = useRef(null);
+  const [fedbackNotes, setFedbackNotes] = useState(false);
+
+  const [aiNotes, setAiNotes] = useState(null); 
 
   useEffect(() => {
     if (chatPageInfo) {
@@ -31,11 +41,64 @@ function ChatPage() {
     }
   }, [chatPageInfo]);
 
-  // 🚀 Start Call with dynamic assistant
+  // generate notes function
+  const generateFeedbackNotes = async () => {
+    setNotesLoading(true);
+    setAiNotes(null); 
+    
+    let generatedNotes = null; // 🌟 Local variable to capture the AI response 🌟
+
+    try {
+      if (!chatPageInfo || !chatPageInfo.conversation) {
+          throw new Error("Chat session data or conversation history is missing.");
+      }
+      
+      const result = await AIModelToGenerateFeedback(
+        chatPageInfo.coachingOption,
+        chatPageInfo.conversation
+      );
+      
+      // Step 1: Process AI Response
+      if (result && result.content) {
+        generatedNotes = result.content;
+        setAiNotes(generatedNotes);      // Update state for UI display
+        console.log("Generated Notes:", generatedNotes);
+      } else {
+        const errorMsg = "Sorry, the AI model returned an empty response.";
+        setAiNotes(errorMsg);
+        generatedNotes = errorMsg; 
+        console.error("AI Model Response Missing Content:", result);
+      }
+    } catch (error) {
+      console.error("Error generating notes:", error);
+      const errorMsg = "An error occurred while generating notes.";
+      setAiNotes(errorMsg);
+      generatedNotes = errorMsg;
+    }
+    
+    // 🌟 Step 2: Save Notes to Convex 🌟
+    // FIX 2: Use the local 'generatedNotes' variable to ensure correct data is saved
+    if (generatedNotes) {
+      try{
+        await saveFeedback({
+          id: pageid,
+          feedback: generatedNotes, 
+        });
+        console.log("✅ Feedback successfully saved to Convex.");
+        toast("Feedback/Notes Generated Successfully")
+      } catch(e) {
+        console.error("❌ Failed to save feedback to Convex:", e);
+        toast("Internal Server Error")
+      }
+    }
+    setNotesLoading(false);
+  };
+
+
   const startCall = () => {
-    if (!chatPageInfo) {
-      alert("Still loading session details. Please try again in a moment.");
-      return;
+    if (!chatPageInfo || !expert) {
+        alert("Loading session details or expert info. Please try again in a moment.");
+        return;
     }
 
     const apiKey = process.env.NEXT_PUBLIC_VAPI_API_KEY;
@@ -44,19 +107,28 @@ function ChatPage() {
       return;
     }
 
-    // ✅ Replace placeholders dynamically
+    // Use dynamic Vapi configuration
+     const { systemPrompt, firstMessage } = getVapiConfig(
+            chatPageInfo.coachingOption, 
+            chatPageInfo.topic
+        );
+    
+    
+    setAiNotes(null); 
+    setFedbackNotes(false);
+
     const assistantOptions = {
       name: "Ai Coach",
-      firstMessage:
-        `Hi! 👋 Ready to start your session on ` + chatPageInfo?.topic,
+      firstMessage:firstMessage, // Dynamic first message
       transcriber: {
         provider: "deepgram",
         model: "nova-2",
         language: "en-US",
       },
       voice: {
-        provider: "playht",
-        voiceId: CoachingExpert === "mathhew" ? "michael" : "jennifer",
+        provider: "11labs",
+        voiceId: expert.voiceId,
+        speed: 0.8,
       },
       model: {
         provider: "openai",
@@ -64,40 +136,7 @@ function ChatPage() {
         messages: [
           {
             role: "system",
-            content:
-              `
-          You are a supportive and patient Teacher to conduct` +
-              chatPageInfo?.coachingOption +
-              `.
-          Your role is to help the student understand concepts clearly and confidently.
-
-          [Style]
-          - Use a warm, encouraging tone to create a safe learning space.
-          - Adapt explanations to the student’s level of knowledge.
-          - Be concise, clear, and use simple language.
-          - Use real-life examples or analogies for better understanding.
-
-          [Guidelines]
-          1. Start with a friendly greeting: 
-            Example: "Hi student  Excited to dive into ` +
-              chatPageInfo?.topic +
-              ` with you today."
-          2. Give a short, clear explanation of the topic.
-          3. Ask simple questions to check understanding.
-          4. If the student seems confused, re-explain in a different way.
-          5. Encourage curiosity and invite questions.
-          6. Wrap up with a positive summary and next-step suggestion.
-
-          [Error Handling]
-          - If the student’s input is unclear, kindly ask them to clarify.
-          - If they make a mistake, gently correct and explain why.
-
-          Goal: 
-          ✅ Make the student feel supported and motivated.
-          ✅ Ensure the session on ` +
-              chatPageInfo?.topic +
-              ` is interactive and engaging.
-          `.trim(),
+            content:systemPrompt.trim(), // Dynamic system prompt
           },
         ],
       },
@@ -109,7 +148,6 @@ function ChatPage() {
     vapiRef.current = vapi;
     setLoading(true);
 
-    // 👇 Pass config object, not just assistantId
     vapi.start(assistantOptions);
 
     vapi.on("call-start", () => {
@@ -119,6 +157,7 @@ function ChatPage() {
       setMessages([]);
       setUserLiveTranscript("");
       setAssistantLiveTranscript("");
+      toast("Connected");
     });
 
     vapi.on("call-end", () => {
@@ -152,6 +191,10 @@ function ChatPage() {
 
     vapi.on("error", (e) => {
       console.error("❌ Vapi error:", JSON.stringify(e, null, 2));
+      // Stop the call and reset UI state on error
+      if (vapiRef.current) vapiRef.current.stop(); 
+      setLoading(false);
+      setCallStarted(false);
     });
   };
 
@@ -161,7 +204,7 @@ function ChatPage() {
       try {
         await updateConversation({
           id: pageid,
-          conversation: messages,
+          conversation: messages, 
         });
         console.log("✅ Conversation saved to Convex.");
       } catch (error) {
@@ -170,6 +213,8 @@ function ChatPage() {
         vapiRef.current.stop();
       }
     }
+    toast("Disconnected");
+    setFedbackNotes(true);
   };
 
   useEffect(() => {
@@ -178,7 +223,6 @@ function ChatPage() {
     };
   }, []);
 
-  // ✅ Your JSX stays unchanged
   return (
     <div>
       <h2 className="text-lg font-bold">{chatPageInfo?.coachingOption}</h2>
@@ -205,8 +249,15 @@ function ChatPage() {
             </div>
             <div className="mt-5 flex items-center justify-center cursor-pointer gap-4">
               {!callStarted ? (
-                <Button onClick={startCall} disabled={loading}>
-                  {loading ? "Connecting..." : "Start Conversation"}
+                <Button onClick={startCall} disabled={loading || !expert}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    "Start Conversation"
+                  )}
                 </Button>
               ) : (
                 <Button variant="destructive" onClick={endCall}>
@@ -214,9 +265,25 @@ function ChatPage() {
                 </Button>
               )}
             </div>
+
+            
+            {aiNotes && (
+              <div className="mt-8 p-6 bg-white border border-gray-300 rounded-lg shadow-xl">
+                <h3 className="text-xl font-bold mb-3 text-center text-blue-700">
+                    {chatPageInfo?.coachingOption === 'Mock Interview' || chatPageInfo?.coachingOption === 'Ques Ans Prep' || chatPageInfo?.coachingOption === 'Language skill'
+                        ? 'Feedback and Improvement Space' 
+                        : 'Session Notes'} 
+                </h3>
+                
+                <div className="text-gray-700 whitespace-pre-wrap">
+                    {aiNotes}
+                </div>
+              </div>
+            )}
+            
           </div>
 
-          {/* Right Side */}
+          {/* Right Side: Conversation Transcript */}
           <div>
             <div className="bg-secondary border-2 rounded-3xl flex h-[60vh] border-gray-300 flex-col p-4">
               <h2 className="text-lg font-semibold mb-2 text-center">
@@ -270,10 +337,18 @@ function ChatPage() {
                 )}
               </div>
             </div>
-            <div>
-              <h2 className="p-5 px-7 text-gray-500">
-                Feedback/Notes will be generated at the end of the conversation.
-              </h2>
+            <div className="flex justify-center items-center mt-5">
+              {!fedbackNotes ? (
+                <h2 className=" px-7 text-gray-500" disabled={notesLoading}>
+                  Feedback/Notes will be generated at the end of the conversation.
+                </h2>
+              ) : (
+                // Disabled button prevents multiple simultaneous generation requests
+                <Button onClick={generateFeedbackNotes} disabled={notesLoading}> 
+                  {notesLoading && <LoaderCircle className="animate-spin mr-2" />}
+                  {notesLoading ? "Generating..." : "Generate Feedback/Notes"}
+                </Button>
+              )}
             </div>
           </div>
         </div>
