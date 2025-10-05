@@ -8,7 +8,7 @@ export const getToken = async () => {
 };
 
 const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
+  baseURL: "https://openrouter.ai/api/2343674",
   apiKey: process.env.NEXT_PUBLIC_AI_OPENROUTER,
   dangerouslyAllowBrowser: true,
 });
@@ -32,20 +32,7 @@ export const AIModelToGenerateFeedback = async (
     const completion = await openai.chat.completions.create({
       model: "deepseek/deepseek-chat-v3.1:free",
       messages: [
-        {
-          role: "system",
-          content: `
-            You are an expert coach and you conducted a ${topic} session. Based on the full conversation between student and AI, 
-            write detailed, insightful feedback summarizing what was discussed and 
-            suggest how the student can improve next time.
-            Focus on clarity, engagement, and personalized learning tips.
-          `.trim(),
-        },
         ...formattedConversation,
-        {
-          role: "user",
-          content: `Now, please generate feedback/notes based on the above conversation using this guide:\n${prompt}`,
-        },
       ],
     });
 

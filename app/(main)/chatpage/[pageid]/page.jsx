@@ -54,10 +54,6 @@ function ChatPage() {
           throw new Error("Chat session data or conversation history is missing.");
       }
       
-      const result = await AIModelToGenerateFeedback(
-        chatPageInfo.coachingOption,
-        chatPageInfo.conversation
-      );
       
       // Step 1: Process AI Response
       if (result && result.content) {
@@ -92,8 +88,6 @@ function ChatPage() {
         toast("Internal Server Error")
       }
     }
-    setNotesLoading(false);
-    router.replace("/dashboard")
   };
 
 
@@ -110,10 +104,7 @@ function ChatPage() {
     }
 
     // Use dynamic Vapi configuration
-     const { systemPrompt, firstMessage } = getVapiConfig(
-            chatPageInfo.coachingOption, 
-            chatPageInfo.topic
-        );
+    
     
     
     setAiNotes(null); 
@@ -121,27 +112,6 @@ function ChatPage() {
 
     const assistantOptions = {
       name: "Ai Coach",
-      firstMessage:firstMessage, // Dynamic first message
-      transcriber: {
-        provider: "deepgram",
-        model: "nova-2",
-        language: "en-US",
-      },
-      voice: {
-        provider: "11labs",
-        voiceId: expert.voiceId,
-        speed: 0.8,
-      },
-      model: {
-        provider: "openai",
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content:systemPrompt.trim(), // Dynamic system prompt
-          },
-        ],
-      },
     };
 
     console.log("🚀 Starting Vapi with assistant config:", assistantOptions);
@@ -154,10 +124,7 @@ function ChatPage() {
 
     vapi.on("call-start", () => {
       console.log("✅ Vapi call started");
-      setCallStarted(true);
       setLoading(false);
-      setMessages([]);
-      setUserLiveTranscript("");
       setAssistantLiveTranscript("");
       toast("Connected");
     });
@@ -182,8 +149,6 @@ function ChatPage() {
         message.type === "transcript" &&
         message.transcriptType === "final"
       ) {
-        setUserLiveTranscript("");
-        setAssistantLiveTranscript("");
         setMessages((prev) => [
           ...prev,
           { role: message.role, text: message.transcript },
@@ -216,7 +181,6 @@ function ChatPage() {
       }
     }
     toast("Disconnected");
-    setFedbackNotes(true);
   };
 
   useEffect(() => {
