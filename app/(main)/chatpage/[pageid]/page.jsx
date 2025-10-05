@@ -5,7 +5,7 @@ import { CoachingExpert } from "@/services/Options";
 import { UserButton } from "@stackframe/stack";
 import { useMutation, useQuery } from "convex/react";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import Vapi from "@vapi-ai/web";
 import { AIModelToGenerateFeedback } from "@/services/GlobalServices"; 
@@ -29,7 +29,7 @@ function ChatPage() {
   const [assistantLiveTranscript, setAssistantLiveTranscript] = useState("");
   const vapiRef = useRef(null);
   const [fedbackNotes, setFedbackNotes] = useState(false);
-
+  const router = useRouter();
   const [aiNotes, setAiNotes] = useState(null); 
 
   useEffect(() => {
@@ -40,6 +40,7 @@ function ChatPage() {
       setExpert(Expert);
     }
   }, [chatPageInfo]);
+
 
   // generate notes function
   const generateFeedbackNotes = async () => {
@@ -92,6 +93,7 @@ function ChatPage() {
       }
     }
     setNotesLoading(false);
+    router.replace("/dashboard")
   };
 
 
@@ -267,7 +269,7 @@ function ChatPage() {
             </div>
 
             
-            {aiNotes && (
+            {/* {aiNotes && (
               <div className="mt-8 p-6 bg-white border border-gray-300 rounded-lg shadow-xl">
                 <h3 className="text-xl font-bold mb-3 text-center text-blue-700">
                     {chatPageInfo?.coachingOption === 'Mock Interview' || chatPageInfo?.coachingOption === 'Ques Ans Prep' || chatPageInfo?.coachingOption === 'Language skill'
@@ -279,7 +281,7 @@ function ChatPage() {
                     {aiNotes}
                 </div>
               </div>
-            )}
+            )} */}
             
           </div>
 

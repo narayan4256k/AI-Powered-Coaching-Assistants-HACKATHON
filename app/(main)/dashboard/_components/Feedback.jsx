@@ -6,6 +6,7 @@ import { List } from '@/services/Options';
 import { useConvex } from 'convex/react'
 import moment from 'moment';
 import Image from 'next/image';
+import Link from 'next/link';
 import React, { useContext, useEffect, useState } from 'react'
 
 function Feedback() {
@@ -51,7 +52,9 @@ function Feedback() {
                    <h2 className='text-neutral-500 text-sm'>{moment(item._creationTime).fromNow()}</h2>
                  </div>
                  </div>
+                 <Link href={"/viewSummary/"+item._id}>
                  <Button className={"hover:cursor-pointer invisible group-hover:visible"} variant="outline" onClick={viewNotes}>View Feedback</Button>
+                 </Link>
                </div>
            ))}     
            </div>   
