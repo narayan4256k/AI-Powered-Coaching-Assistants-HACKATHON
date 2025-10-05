@@ -1,27 +1,41 @@
-# 🎤 VocalCoachAI – Your Personalized AI Voice Coach
+# 🎤 VocalCoachAI – Your Personalized AI Voice Coach  
 
 VocalCoachAI is a **next-generation AI-powered platform** built on **Next.js** that offers real-time, personalized voice coaching to improve communication, presentation, academic, and interview skills.  
 
-Through interactive AI-driven conversations, users can practice speaking, receive instant feedback, and get detailed **post-session notes** or **interview feedback** — helping them grow faster, anywhere, anytime.
+Through interactive AI-driven conversations, users can practice speaking, receive instant feedback, and get detailed **post-session notes** or **interview feedback** — helping them grow faster, anywhere, anytime.  
 
 ---
 
-## ✨ Features
+## 🧠 Hackathon Info  
 
-- 🔑 **Authentication** – Secure login with [StackAuth](https://stackframe.dev/).
-- 🗄️ **Database** – User progress stored with [Convex](https://convex.dev/) (self-hosted via Docker for portability).
-- 🎙️ **AI Voice Calls** – Real-time speech-to-text with [AssemblyAI](https://www.assemblyai.com/) + conversational voice via [Vapi AI](https://vapi.ai/).
-- 🧑‍🏫 **4 Training Modes**:
-  1. 📚 **Lecture Mode** – Learn topics interactively.
-  2. 💼 **Mock Interview** – Practice with instant AI feedback.
-  3. ❓ **Q&A / Preparation** – Ask and prepare for exams or interviews.
-  4. 🌍 **Language Skills** – Improve speaking fluency and confidence.
-- 📝 **AI Notes & Feedback** – Auto-generated summaries or feedback after each session via [OpenRouter](https://openrouter.ai/).
-- 🌐 **Anywhere Access** – Convex DB is dockerized → run it locally or deploy remotely.
+> **Team Name:** UNETHICAL CODERS  
+> **Hackathon:** INNOQUEST HACKATHON 2025  
+> **Theme:** EDUTECH  
+> **PS Category:** Software  
+
+**Team Members:**  
+1. Sagar  
+2. Manas Warose  
+3. Pradyum Mohare  
 
 ---
 
-## 🚀 Tech Stack
+## ✨ Features  
+
+- 🔑 **Authentication** – Secure login with [StackAuth](https://stackframe.dev/).  
+- 🗄️ **Database** – User progress stored with [Convex](https://convex.dev/) (self-hosted via Docker for portability).  
+- 🎙️ **AI Voice Calls** – Real-time speech-to-text with [AssemblyAI](https://www.assemblyai.com/) + conversational voice via [Vapi AI](https://vapi.ai/).  
+- 🧑‍🏫 **4 Training Modes**:  
+  1. 📚 **Lecture Mode** – Learn topics interactively.  
+  2. 💼 **Mock Interview** – Practice with instant AI feedback.  
+  3. ❓ **Q&A / Preparation** – Ask and prepare for exams or interviews.  
+  4. 🌍 **Language Skills** – Improve speaking fluency and confidence.  
+- 📝 **AI Notes & Feedback** – Auto-generated summaries or feedback after each session via [OpenRouter](https://openrouter.ai/).  
+- 🌐 **Anywhere Access** – Convex DB is dockerized → run it locally or deploy remotely.  
+
+---
+
+## 🚀 Tech Stack  
 
 - **Frontend:** [Next.js 14](https://nextjs.org/), [React](https://react.dev/), [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/)  
 - **Auth:** [StackAuth](https://stackframe.dev/)  
@@ -31,8 +45,7 @@ Through interactive AI-driven conversations, users can practice speaking, receiv
 
 ---
 
-
-## ✨ Key Features
+## ✨ Key Features  
 
 - **🎙️ Real-time Voice Coaching** – Engage in two-way conversations with an AI coach.  
 - **✍️ Live Transcription** – Speech-to-text powered by **AssemblyAI** for instant transcripts.  
@@ -47,9 +60,9 @@ Through interactive AI-driven conversations, users can practice speaking, receiv
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ System Architecture  
 
-Here’s how the system flows end-to-end:
+Here’s how the system flows end-to-end:  
 
 1. **Authentication** → Secure login via **StackAuth**.  
 2. **Database** → User data + session history stored in **Convex** (Dockerized for portability).  
@@ -65,7 +78,7 @@ Here’s how the system flows end-to-end:
 
 ---
 
-## ⚙️ Tech Stack
+## ⚙️ Tech Stack Overview  
 
 | Category          | Technology     | Purpose |
 |-------------------|---------------|---------|
@@ -79,17 +92,3 @@ Here’s how the system flows end-to-end:
 
 ---
 
-## 🛠️ Local Development
-
-### Prerequisites
-- Node.js (18+)
-- pnpm / npm / yarn
-- Docker (for Convex DB)
-- API keys for StackAuth, Vapi AI, AssemblyAI, OpenRouter
-
-### Setup
-
-1. **Clone Repo**  
-```bash
-git clone https://github.com/your-username/vocalcoachai.git
-cd vocalcoachai
